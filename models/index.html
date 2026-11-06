@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>3D 모델 · 공룡 방어선</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<style>
+  :root { --bg:#0e1420; --panel:#162033; --line:#2a3a58; --ink:#eef3fb; --muted:#9fb0c8; --accent:#3be0ff; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif; }
+  body { display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:12px; padding:12px 16px; }
+  header a { color: var(--muted); text-decoration:none; font-size:15px; }
+  header h1 { font-size: 18px; margin:0; flex:1; }
+  model-viewer { flex:1; width:100%; min-height: 55vh; background: radial-gradient(circle at 50% 40%, #1d2a44, #0b101a 70%);
+    --poster-color: transparent; }
+  .info { padding: 10px 16px 4px; }
+  .info b { font-size: 18px; }
+  .info p { margin: 4px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .bar { display:flex; gap:8px; overflow-x:auto; padding: 10px 16px 18px; -webkit-overflow-scrolling: touch; }
+  .bar button { flex:0 0 auto; background:var(--panel); color:var(--ink); border:1px solid var(--line);
+    border-radius: 999px; padding: 10px 14px; font-size: 15px; font-family: inherit; }
+  .bar button.on { border-color: var(--accent); color: var(--accent); }
+  .group { flex:0 0 auto; color: var(--muted); font-size: 12px; align-self:center; padding: 0 2px 0 6px; }
+  .anim { display:flex; gap:6px; padding: 0 16px; flex-wrap: wrap; }
+  .anim button { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px;
+    padding:6px 10px; font-size:13px; font-family: inherit; }
+  .anim button.on { color: var(--ink); border-color: var(--ink); }
+</style>
+</head>
+<body>
+<header>
+  <a href="../">← 처음으로</a>
+  <h1>3D 모델 보기</h1>
+</header>
+<model-viewer id="mv" src="hero.glb" camera-controls touch-action="pan-y" auto-rotate auto-rotate-delay="1500"
+  shadow-intensity="1" exposure="1.1" environment-image="neutral" interaction-prompt="none" loading="eager"></model-viewer>
+<div class="info"><b id="name"></b><p id="desc"></p></div>
+<div class="anim" id="anims"></div>
+<div class="bar" id="bar"></div>
+<script>
+const MODELS = [
+  {g: "영웅"},
+  {f: "hero.glb", n: "영웅 콘셉트 v1", d: "MakeHuman 보디빌더 몸 + 슈퍼히어로 장비 (헬멧 바이저, 균열 코어, 레일 캐논, 망토). 블록아웃 단계."},
+  {g: "적 · 선사 생물"},
+  {f: "dino_trex.glb", n: "티라노 (1장 보스)", d: "포효로 병사 기절. Quaternius CC0, 색 다시 칠함."},
+  {f: "dino_raptor.glb", n: "랩터", d: "빠른 떼. 축소·색 변경판이 콤프소그나투스."},
+  {f: "dino_trike.glb", n: "트리케라톱스", d: "돌진해서 보병 진지를 뚫음. 장갑."},
+  {f: "dino_parasaur.glb", n: "파라사우롤로푸스", d: "보통 적."},
+  {f: "dino_stego.glb", n: "스테고사우루스", d: "느린 탱커 (2~3장 예정)."},
+  {f: "dino_apato.glb", n: "아파토사우루스", d: "거대 탱커 (8장 예정)."},
+  {f: "dino_ptero.glb", n: "프테라노돈", d: "하늘 적, 헬기를 노림. OpenGameArt CC0."},
+  {f: "dino_trilobite.glb", n: "삼엽충", d: "껍질 단단한 작은 떼. 자체 제작."},
+  {g: "아군"},
+  {f: "ride_tank.glb", n: "전차 (탈것)", d: "느리고 단단함. 스킬: 일제 포격."},
+  {f: "ride_heli.glb", n: "공격헬기 (탈것)", d: "빠르고 지형 무시. 스킬: 로켓 세례."},
+  {f: "tower_artillery_3.glb", n: "포병 Lv3 자주포", d: "지상 범위 폭발."},
+  {f: "tower_artillery_4a.glb", n: "포병 Lv4 다연장", d: "4연발, 떼에 강함."},
+  {f: "tower_aa_3.glb", n: "방공 Lv3", d: "하늘 전용 유도 미사일."},
+];
+const mv = document.getElementById("mv"), bar = document.getElementById("bar");
+const nameEl = document.getElementById("name"), descEl = document.getElementById("desc"), animEl = document.getElementById("anims");
+function show(m, btn) {
+  mv.src = m.f; nameEl.textContent = m.n; descEl.textContent = m.d;
+  bar.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
+  animEl.innerHTML = "";
+}
+mv.addEventListener("load", () => {
+  const names = mv.availableAnimations || [];
+  animEl.innerHTML = "";
+  const order = ["Walk", "Run", "Fly", "Attack", "Idle", "Death", "Jump", "Glide"];
+  const list = order.filter(a => names.includes(a));
+  if (!list.length) { mv.pause(); return; }
+  const play = a => { mv.animationName = a; mv.play(); animEl.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.textContent === a)); };
+  list.forEach(a => { const b = document.createElement("button"); b.textContent = a; b.onclick = () => play(a); animEl.appendChild(b); });
+  play(list[0]);
+});
+MODELS.forEach((m, i) => {
+  if (m.g) { const s = document.createElement("span"); s.className = "group"; s.textContent = m.g; bar.appendChild(s); return; }
+  const b = document.createElement("button"); b.textContent = m.n; b.onclick = () => show(m, b); bar.appendChild(b);
+  if (m.f === "hero.glb") show(m, b);
+});
+</script>
+</body>
+</html>
